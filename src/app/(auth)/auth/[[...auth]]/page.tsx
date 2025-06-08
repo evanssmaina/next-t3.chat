@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { SignInButtons } from "./sign-in-buttons";
+import { SignInButtons } from "../sign-in-buttons";
 
 export default function AuthPage() {
   return (
