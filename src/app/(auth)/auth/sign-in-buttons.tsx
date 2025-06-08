@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import * as Clerk from "@clerk/elements/common";
 import * as SignIn from "@clerk/elements/sign-up";
 
-export function SignInWithGoogleButton() {
+export function SignInButtons() {
   return (
     <SignIn.Root>
       <Clerk.Loading>

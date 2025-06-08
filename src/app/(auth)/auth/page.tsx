@@ -1,4 +1,6 @@
-import { SignInWithGoogleButton } from "./sign-in-button";
+import { Suspense } from "react";
+import { SignInButtons } from "./sign-in-buttons";
+
 export default function AuthPage() {
   return (
     <div className="text-center flex flex-col items-center">
@@ -10,7 +12,9 @@ export default function AuthPage() {
       </p>
 
       <div className="max-w-sm w-full mb-10">
-        <SignInWithGoogleButton />
+        <Suspense>
+          <SignInButtons />
+        </Suspense>
       </div>
       <p>By continuing, you agree to our Terms of Service and Privacy Policy</p>
     </div>
