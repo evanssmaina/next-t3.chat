@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/styles/globals.css";
-import { MainNav } from "@/components/main-nav";
 import { Toaster } from "@/components/ui/sonner";
+import { PostHogProvider } from "@/providers/posthog-provider";
+import { ThemeProvider } from "@/providers/theme-provider";
 import { ClerkProvider } from "@clerk/nextjs";
-import { neobrutalism } from "@clerk/themes";
 
 const geistSans = Geist({
   variable: "--font-sans",
@@ -27,19 +27,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider
-      appearance={{
-        baseTheme: neobrutalism,
-      }}
-    >
-      <html lang="en" suppressHydrationWarning>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-        >
-          {children}
-          <Toaster />
-        </body>
-      </html>
+    <ClerkProvider>
+      <PostHogProvider>
+        <html lang="en" suppressHydrationWarning>
+          <body
+            className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+          >
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              {children}
+              <Toaster />
+            </ThemeProvider>
+          </body>
+        </html>
+      </PostHogProvider>
     </ClerkProvider>
   );
 }
