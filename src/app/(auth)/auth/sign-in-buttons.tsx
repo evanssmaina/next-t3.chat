@@ -17,6 +17,7 @@ export function SignInButtons() {
                 className="w-full gap-4"
                 type="button"
                 disabled={isGlobalLoading}
+                variant={"secondary"}
               >
                 <Clerk.Loading scope="provider:google">
                   {(isLoading) =>
@@ -38,6 +39,7 @@ export function SignInButtons() {
                 className="w-full gap-4"
                 type="button"
                 disabled={isGlobalLoading}
+                variant={"secondary"}
               >
                 <Clerk.Loading scope="provider:github">
                   {(isLoading) =>
@@ -45,7 +47,7 @@ export function SignInButtons() {
                       <Icons.loader className="size-4 animate-spin" />
                     ) : (
                       <>
-                        <Icons.github />
+                        <Icons.github className="text" />
                         Continue with GitHub
                       </>
                     )

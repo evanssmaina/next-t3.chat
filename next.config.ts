@@ -9,6 +9,17 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  serverExternalPackages: [
+    "got",
+    "metascraper",
+    "metascraper-description",
+    "metascraper-image",
+    "metascraper-title",
+    "metascraper-url",
+    "metascraper-logo",
+    "jsdom",
+    "keyv",
+  ],
   skipTrailingSlashRedirect: true,
   async rewrites() {
     return [
@@ -25,6 +36,19 @@ const nextConfig: NextConfig = {
         destination: "https://us.i.posthog.com/decide",
       },
     ];
+  },
+  images: {
+    remotePatterns: [
+      {
+        hostname: "assets.next-t3.chat",
+      },
+      {
+        protocol: "https",
+        hostname: "**",
+        port: "",
+        pathname: "/**",
+      },
+    ],
   },
 };
 

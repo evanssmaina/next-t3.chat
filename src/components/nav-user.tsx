@@ -18,9 +18,7 @@ export function NavUser() {
     <SidebarMenu>
       <SidebarMenuItem>
         {userId ? (
-          <SidebarMenuButton size={"lg"}>
-            {user?.emailAddresses[0].emailAddress}
-          </SidebarMenuButton>
+          <SidebarMenuButton size={"lg"}>{user?.fullName}</SidebarMenuButton>
         ) : (
           <SidebarMenuButton size={"lg"} asChild>
             <Link href="/auth" className="flex items-center gap-4">
