@@ -27,19 +27,18 @@ export const chat = pgTable(
 export const message = pgTable(
   "message",
   {
-    id: text("id").primaryKey(),
+    id: text().primaryKey().notNull(),
     userId: text()
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     chatId: text()
       .notNull()
       .references(() => chat.id, { onDelete: "cascade" }),
-    aiModel: text().notNull(),
     role: text().$type<Message["role"]>().notNull(),
     content: text().$type<Message["content"]>().notNull(),
     annotations: json().$type<Message["annotations"]>().notNull(),
-    parts: json("parts").$type<Message["parts"]>().notNull(),
-    experimental_attachments: json()
+    parts: json().$type<Message["parts"]>().notNull(),
+    experimentalAttachments: json()
       .$type<Message["experimental_attachments"]>()
       .notNull(),
     createdAt: timestamp({ mode: "date" })
@@ -49,6 +48,49 @@ export const message = pgTable(
   (table) => {
     return {
       chatIdIdx: index().on(table.chatId),
+      userIdIdx: index().on(table.userId),
+    };
+  },
+);
+
+export const stream = pgTable(
+  "stream",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId("stream")),
+    chatId: text("chatId")
+      .notNull()
+      .references(() => chat.id, { onDelete: "cascade" }),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+  },
+  (table) => {
+    return {
+      chatIdIdx: index().on(table.chatId),
+      userIdIdx: index().on(table.userId),
+    };
+  },
+);
+
+export const file = pgTable(
+  "file",
+  {
+    id: text("id").primaryKey(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    contentType: text().notNull(),
+    size: text().notNull(),
+    key: text().notNull(),
+    url: text().notNull(),
+    createdAt: timestamp().defaultNow().notNull(),
+  },
+  (table) => {
+    return {
       userIdIdx: index().on(table.userId),
     };
   },

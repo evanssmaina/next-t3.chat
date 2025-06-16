@@ -1,5 +1,4 @@
-"use client";
-
+import { availableModels } from "@/ai/providers";
 import { cn } from "@/lib/utils";
 import type { ChatRequestOptions, UIMessage } from "ai";
 import { useRef } from "react";
@@ -14,7 +13,14 @@ import { ScrollButton } from "../ui/scroll-button";
 import { AIErrorMessage } from "./ai-error-messge";
 import { AILoading } from "./ai-loading";
 import { AIMessageFooter } from "./ai-message-footer";
+import { AIReasoning } from "./ai-reasoning";
 import { markdownComponents } from "./markdown-components";
+import { MessageAttachments } from "./message-attachments";
+
+export const getModelNameById = (id: string) => {
+  const model = availableModels.find((model) => model.id === id);
+  return model?.name;
+};
 
 interface ChatInterfaceProps {
   reload: (
@@ -35,8 +41,8 @@ export function ChatInterface({
 
   return (
     <div ref={chatContainerRef} className="relative flex-1 overflow-y-auto">
-      <ChatContainerRoot className="h-full">
-        <ChatContainerContent className="space-y-10  px-5 py-20">
+      <div className="h-full">
+        <div className="space-y-10  px-5 py-20">
           {messages.map((message, index) => {
             const isLoading = status === "streaming";
             const isLastMessage = index === messages.length - 1;
@@ -46,13 +52,21 @@ export function ChatInterface({
               <MessageComponent
                 key={message.id}
                 className={cn(
-                  message.role === "user" ? "justify-end" : "justify-start",
                   "mx-auto flex w-full max-w-3xl flex-col gap-2 px-6",
                 )}
               >
                 {message.role === "user" ? (
                   <div className="flex flex-col items-end w-full gap-1">
                     {/* Map over message.parts for user messages */}
+
+                    {message.experimental_attachments && (
+                      <MessageAttachments
+                        key={message.id}
+                        messageId={message.id}
+                        attachments={message.experimental_attachments}
+                      />
+                    )}
+
                     {message.parts &&
                       message.parts.map((part, index) => {
                         if (part.type === "text") {
@@ -74,6 +88,11 @@ export function ChatInterface({
                     {/* Map over message.parts for ai messages */}
                     {message.parts &&
                       message.parts.map((part, index) => {
+                        if (part.type === "reasoning") {
+                          return (
+                            <AIReasoning key={index} reasoningParts={[part]} />
+                          );
+                        }
                         if (part.type === "text") {
                           return (
                             <Markdown
@@ -109,8 +128,9 @@ export function ChatInterface({
               <AILoading status={status} messages={messages} />
             )}
           </div>
-        </ChatContainerContent>
-      </ChatContainerRoot>
+        </div>
+        <ScrollButton />
+      </div>
     </div>
   );
 }

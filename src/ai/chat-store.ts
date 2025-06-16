@@ -1,6 +1,8 @@
 import { db } from "@/server/db";
-import { chat, message } from "@/server/db/schemas";
-import { getQueryClient, trpc } from "@/server/trpc/server";
+import { stream, chat, message } from "@/server/db/schemas";
+import { index } from "@/trpc/routers/chats";
+import { getQueryClient } from "@/trpc/server";
+import { trpc } from "@/trpc/server-utils";
 import type { Message as AIMessage } from "ai";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
@@ -8,38 +10,54 @@ interface SaveChatParams {
   chatId: string;
   userId: string;
   messages: AIMessage[];
-  aiModel: string;
 }
 
-export async function loadChatMessages(
-  chatId: string,
-  userId: string,
-): Promise<AIMessage[]> {
-  try {
-    // Fetch all messages for this chat
-    const messages = await db
-      .select()
-      .from(message)
-      .where(and(eq(message.chatId, chatId), eq(message.userId, userId)))
-      .orderBy(asc(message.createdAt))
-      .execute();
-
-    // Transform database messages to AI SDK message format
-    const data = messages.map(({ chatId, aiModel, userId, ...rest }) => rest);
-
-    return data;
-  } catch (error) {
-    console.error("Error loading chat messages:", error);
-    return [];
+// Helper function to extract text content from a message
+function extractMessageContent(message: AIMessage): string {
+  if (typeof message.content === "string") {
+    return message.content;
+    // biome-ignore lint/style/noUselessElse: <explanation>
+  } else if (Array.isArray(message.content)) {
+    return message.content
+      .map((content: { type: string; text: any }) =>
+        content.type === "text" ? content.text : "",
+      )
+      .join(" ");
   }
+  return "";
 }
 
-export async function saveChat({
+// Helper function to generate chat title from first user message
+function generateChatTitle(messages: AIMessage[]): string {
+  const firstUserMessage = messages.find((msg) => msg.role === "user");
+  if (firstUserMessage?.content) {
+    const content = extractMessageContent(firstUserMessage);
+    return content.substring(0, 30) + (content.length > 30 ? "..." : "");
+  }
+  return "(New Chat)";
+}
+
+export async function loadPreviousMessages({
   chatId,
   userId,
-  messages,
-  aiModel,
-}: SaveChatParams) {
+}: { chatId: string; userId: string }) {
+  const messages = await db
+    .select()
+    .from(message)
+    .where(and(eq(message.chatId, chatId), eq(message.userId, userId)))
+    .execute();
+
+  const data = messages.map(
+    ({ chatId, userId, experimentalAttachments, ...rest }) => ({
+      ...rest,
+      experimental_attachments: experimentalAttachments,
+    }),
+  );
+
+  return data;
+}
+
+export async function saveChat({ chatId, userId, messages }: SaveChatParams) {
   if (!messages?.length) return;
 
   const queryClient = getQueryClient();
@@ -48,34 +66,32 @@ export async function saveChat({
     try {
       // Check if the chat exists
       const existingChat = await tx
-        .select({ id: chat.id })
+        .select()
         .from(chat)
         .where(eq(chat.id, chatId))
         .execute();
 
+      const chatTitle = generateChatTitle(messages);
+      const isNewChat = existingChat.length === 0;
+
       // If chat doesn't exist, create it
-      if (existingChat.length === 0) {
+      if (isNewChat) {
         await tx.insert(chat).values({
           id: chatId,
           userId,
-          title: "(New Chat)",
+          title: chatTitle,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-
-        queryClient.invalidateQueries({
-          queryKey: trpc.chat.get.queryKey(),
-        });
       } else {
-        // Update the chat's updatedAt timestamp
+        // Update the chat's updatedAt timestamp and title if needed
         await tx
           .update(chat)
-          .set({ updatedAt: new Date() })
+          .set({
+            updatedAt: new Date(),
+            title: chatTitle, // Update title in case it changed
+          })
           .where(eq(chat.id, chatId));
-
-        queryClient.invalidateQueries({
-          queryKey: trpc.chat.get.queryKey(),
-        });
       }
 
       // Get existing messages
@@ -111,7 +127,7 @@ export async function saveChat({
           JSON.stringify(msg.annotations) !==
             JSON.stringify(existing.annotations) ||
           JSON.stringify(msg.experimental_attachments) !==
-            JSON.stringify(existing.experimental_attachments)
+            JSON.stringify(existing.experimentalAttachments)
         );
       });
 
@@ -126,6 +142,19 @@ export async function saveChat({
             ),
           ),
         );
+
+        // Delete messages from search index
+        for (const msg of messagesToDelete) {
+          try {
+            await index.delete(`msg_${msg.id}`);
+          } catch (error) {
+            console.error(
+              `Error deleting message ${msg.id} from search index:`,
+              error,
+            );
+          }
+        }
+
         queryClient.invalidateQueries({
           queryKey: trpc.message.getById.queryKey({
             chatId: chatId,
@@ -139,7 +168,6 @@ export async function saveChat({
             id: msg.id,
             chatId: chatId,
             userId: userId,
-            aiModel: aiModel,
             role: msg.role,
             content: msg.content,
             createdAt:
@@ -148,9 +176,40 @@ export async function saveChat({
                 : new Date(msg.createdAt || Date.now()),
             annotations: msg.annotations || [],
             parts: msg.parts || [],
-            experimental_attachments: msg.experimental_attachments || [],
+            experimentalAttachments: msg.experimental_attachments || [],
           })),
         );
+
+        // Index new messages in search
+        for (const msg of messagesToInsert) {
+          const messageContent = extractMessageContent(msg);
+          if (messageContent.trim()) {
+            try {
+              await index.upsert({
+                id: `msg_${msg.id}`,
+                content: {
+                  content: messageContent,
+                  role: msg.role,
+                  chatTitle: chatTitle,
+                },
+                metadata: {
+                  chatId: chatId,
+                  userId: userId,
+                  messageId: msg.id,
+                  role: msg.role,
+                  createdAt: (msg.createdAt instanceof Date
+                    ? msg.createdAt
+                    : new Date(msg.createdAt || Date.now())
+                  ).toISOString(),
+                  chatTitle: chatTitle,
+                },
+              });
+            } catch (error) {
+              console.error(`Error indexing message ${msg.id}:`, error);
+            }
+          }
+        }
+
         queryClient.invalidateQueries({
           queryKey: trpc.message.getById.queryKey({
             chatId: chatId,
@@ -166,10 +225,42 @@ export async function saveChat({
               content: msg.content,
               annotations: msg.annotations || [],
               parts: msg.parts || [],
-              experimental_attachments: msg.experimental_attachments || [],
+              experimentalAttachments: msg.experimental_attachments || [],
             })
             .where(and(eq(message.chatId, chatId), eq(message.id, msg.id)));
+
+          // Update message in search index
+          const messageContent = extractMessageContent(msg);
+          if (messageContent.trim()) {
+            try {
+              await index.upsert({
+                id: `msg_${msg.id}`,
+                content: {
+                  content: messageContent,
+                  role: msg.role,
+                  chatTitle: chatTitle,
+                },
+                metadata: {
+                  chatId: chatId,
+                  userId: userId,
+                  messageId: msg.id,
+                  role: msg.role,
+                  createdAt: (msg.createdAt instanceof Date
+                    ? msg.createdAt
+                    : new Date(msg.createdAt || Date.now())
+                  ).toISOString(),
+                  chatTitle: chatTitle,
+                },
+              });
+            } catch (error) {
+              console.error(
+                `Error updating message ${msg.id} in search index:`,
+                error,
+              );
+            }
+          }
         }
+
         queryClient.invalidateQueries({
           queryKey: trpc.message.getById.queryKey({
             chatId: chatId,
@@ -177,20 +268,65 @@ export async function saveChat({
         });
       }
 
-      // If this is the first time we're saving messages, generate a title
-      if (existingChat.length === 0 && messages.length > 0) {
-        const firstUserMessage = messages.find((msg) => msg.role === "user");
-        if (firstUserMessage?.content) {
-          const title =
-            firstUserMessage.content.substring(0, 30) +
-            (firstUserMessage.content.length > 30 ? "..." : "");
+      // Also maintain the chat-level index for chat listing
+      await index.upsert({
+        id: `chat_${chatId}`,
+        content: {
+          title: chatTitle,
+        },
+        metadata: {
+          createdAt: isNewChat
+            ? new Date().toISOString()
+            : existingChat[0]?.createdAt.toISOString() ||
+              new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          userId: userId,
+          messageCount: messages.length,
+          type: "chat", // Distinguish from message entries
+        },
+      });
 
-          await tx.update(chat).set({ title }).where(eq(chat.id, chatId));
-        }
-      }
+      // Invalidate chat search queries
+      queryClient.invalidateQueries({
+        queryKey: trpc.chat.search.queryKey(),
+      });
     } catch (error) {
       console.error("Error saving chat:", error);
       throw error;
     }
   });
+}
+
+export async function getStreamIdsByChatId({
+  chatId,
+  userId,
+}: { chatId: string; userId: string }) {
+  try {
+    const streamIds = await db
+      .select({ id: stream.id })
+      .from(stream)
+      .where(and(eq(stream.chatId, chatId), eq(stream.userId, userId)))
+      .orderBy(asc(stream.createdAt))
+      .execute();
+
+    return streamIds.map(({ id }) => id);
+  } catch (error) {
+    console.error("Error getting streamId:", error);
+    throw error;
+  }
+}
+
+export async function createStreamId({
+  chatId,
+  userId,
+}: {
+  chatId: string;
+  userId: string;
+}) {
+  try {
+    await db.insert(stream).values({ chatId, userId, createdAt: new Date() });
+  } catch (error) {
+    console.error("Error creating streamId:", error);
+    throw error;
+  }
 }

@@ -1,4 +1,9 @@
 import { SecondaryNav } from "@/components/secondary-nav";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "settings",
+};
 
 export default function SettingsLayout({
   children,
@@ -7,8 +12,12 @@ export default function SettingsLayout({
 }>) {
   const links = [
     {
-      name: "Account",
-      href: "/settings/account",
+      name: "Profile",
+      href: "/settings/profile",
+    },
+    {
+      name: "Security",
+      href: "/settings/security",
     },
   ];
 

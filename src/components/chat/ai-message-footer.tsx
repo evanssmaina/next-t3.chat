@@ -46,7 +46,7 @@ export const AIMessageFooter = ({
   return (
     <motion.div
       className="flex items-center justify-between w-full gap-3 mt-2"
-      initial={{ opacity: 0, x: -10 }}
+      initial={{ opacity: 0, x: -5 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >
@@ -77,11 +77,9 @@ export const AIMessageFooter = ({
         </MessageAction>
       </MessageActions>
 
-      <p className="text-muted-foreground text-md flex-1">Gemini 2.5 Flash</p>
-
-      {/* {sources.length > 0 && (
+      {sources.length > 0 && (
         <AISourcesList sources={sources.map((part) => part.source)} />
-      )} */}
+      )}
     </motion.div>
   );
 };

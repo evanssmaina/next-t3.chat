@@ -1,5 +1,6 @@
 "use client";
 
+import { env } from "@/env";
 import { useUser } from "@clerk/nextjs";
 import { usePathname, useSearchParams } from "next/navigation";
 import posthog from "posthog-js";
@@ -8,8 +9,8 @@ import { Suspense, useEffect } from "react";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-      api_host: "/phg/ingest",
+    posthog.init(env.NEXT_PUBLIC_POSTHOG_KEY, {
+      api_host: "/ingest",
       ui_host: "https://us.posthog.com",
       person_profiles: "always",
       capture_pageview: false,

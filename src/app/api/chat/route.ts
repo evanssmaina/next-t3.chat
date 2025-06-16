@@ -1,5 +1,12 @@
-import { loadChatMessages, saveChat } from "@/ai/chat-store";
-import { google } from "@ai-sdk/google";
+import {
+  createStreamId,
+  getStreamIdsByChatId,
+  loadPreviousMessages,
+  saveChat,
+} from "@/ai/chat-store";
+import { registry } from "@/ai/providers";
+import { logger, withAxiom } from "@/lib/axiom/server";
+import { redis } from "@/lib/redis";
 import { auth } from "@clerk/nextjs/server";
 import {
   type Message,
@@ -10,37 +17,43 @@ import {
   smoothStream,
   streamText,
 } from "ai";
+import { createDataStream } from "ai";
+import { differenceInSeconds } from "date-fns";
 import { NextResponse } from "next/server";
+import { after } from "next/server";
+import { createResumableStreamContext } from "resumable-stream";
 
-// Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
-
-export async function POST(req: Request) {
-  const { message, chatId }: { message: Message; chatId: string } =
-    await req.json();
+export const POST = withAxiom(async (req) => {
+  const {
+    message,
+    chatId,
+    model,
+  }: { message: Message; chatId: string; model: string } = await req.json();
 
   const { userId } = await auth();
 
   if (!userId) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Unauthorized. Please login to continue.",
-      },
-      {
-        status: 401,
-      },
-    );
+    return new NextResponse("Unauthorized. Please login to continue.", {
+      status: 401,
+    });
   }
 
-  if (!message || !chatId) {
-    return NextResponse.json(
-      { error: "Message and chat ID are required" },
-      { status: 400 },
-    );
+  if (!message || !chatId || !model) {
+    return new NextResponse("Message and chat ID and model are required", {
+      status: 400,
+    });
   }
 
-  const previousMessages = await loadChatMessages(chatId, userId);
+  const [previousMessages] = await Promise.all([
+    loadPreviousMessages({
+      chatId,
+      userId,
+    }),
+    createStreamId({
+      chatId,
+      userId,
+    }),
+  ]);
 
   const messages = appendClientMessage({
     messages: !previousMessages ? [] : previousMessages,
@@ -49,11 +62,10 @@ export async function POST(req: Request) {
 
   return createDataStreamResponse({
     execute: (dataStream) => {
-      const aiModel = "gemini-2.5-flash";
+      dataStream.writeMessageAnnotation({ aiModel: model });
+
       const result = streamText({
-        model: google("gemini-2.5-flash-preview-04-17", {
-          useSearchGrounding: true,
-        }),
+        model: registry.languageModel(model as any),
         messages,
         experimental_transform: smoothStream({
           delayInMs: 20,
@@ -63,6 +75,14 @@ export async function POST(req: Request) {
           prefix: "msgs",
           separator: "_",
         }),
+        providerOptions: {
+          google: {
+            thinkingConfig: {
+              includeThoughts: true,
+              thinkingBudget: 10000,
+            },
+          },
+        },
         async onFinish({ response }) {
           try {
             const messagesToSave = appendResponseMessages({
@@ -70,35 +90,113 @@ export async function POST(req: Request) {
               responseMessages: response.messages,
             });
 
-            console.log(
-              JSON.stringify(messagesToSave, null, 2),
-              "messagesToSave",
-            );
-
             await saveChat({
               chatId: chatId,
               userId: userId,
               messages: messagesToSave,
-              aiModel,
             });
           } catch (error) {
-            console.error("Error saving chat messages:", error);
+            logger.error("Error saving chat messages to the db:", error as any);
             // Don't throw here - we want to complete the stream even if saving fails
           }
         },
       });
 
-      dataStream.writeData({ aiModel: aiModel });
-
       result.consumeStream();
 
       result.mergeIntoDataStream(dataStream, {
         sendSources: true,
+        sendUsage: false,
+        sendReasoning: true,
       });
     },
     onError: (error) => {
-      console.log(error);
+      console.error(error);
       return "Oops, an error occurred!";
     },
   });
+});
+
+const streamContext = createResumableStreamContext({
+  waitUntil: after,
+  publisher: redis,
+  subscriber: redis,
+  keyPrefix: "chat-stream",
+});
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const chatId = searchParams.get("chatId");
+  const { userId } = await auth();
+  const resumeRequestedAt = new Date();
+
+  if (!userId) {
+    return new NextResponse("Unauthorized. Please login to continue.", {
+      status: 401,
+    });
+  }
+
+  if (!chatId) {
+    return new NextResponse("id is required", { status: 400 });
+  }
+
+  const streamIds = await getStreamIdsByChatId({
+    chatId,
+    userId,
+  });
+
+  if (!streamIds.length) {
+    return new NextResponse("No streams found", { status: 404 });
+  }
+
+  const recentStreamId = streamIds.at(-1);
+
+  if (!recentStreamId) {
+    return new NextResponse("No recent stream found", { status: 404 });
+  }
+
+  const emptyDataStream = createDataStream({
+    execute: () => {},
+  });
+
+  const stream = await streamContext.resumableStream(
+    recentStreamId,
+    () => emptyDataStream,
+  );
+
+  if (stream) {
+    return new NextResponse(stream, { status: 200 });
+  }
+
+  /*
+   * For when the generation is "active" during SSR but the
+   * resumable stream has concluded after reaching this point.
+   */
+
+  const messages = await loadPreviousMessages({
+    chatId,
+    userId,
+  });
+  const mostRecentMessage = messages?.at(-1);
+
+  if (!mostRecentMessage || mostRecentMessage.role !== "assistant") {
+    return new Response(emptyDataStream, { status: 200 });
+  }
+
+  const messageCreatedAt = new Date(mostRecentMessage.createdAt as Date);
+
+  if (differenceInSeconds(resumeRequestedAt, messageCreatedAt) > 15) {
+    return new NextResponse(emptyDataStream, { status: 200 });
+  }
+
+  const streamWithMessage = createDataStream({
+    execute: (buffer) => {
+      buffer.writeData({
+        type: "append-message",
+        message: JSON.stringify(mostRecentMessage),
+      });
+    },
+  });
+
+  return new NextResponse(streamWithMessage, { status: 200 });
 }

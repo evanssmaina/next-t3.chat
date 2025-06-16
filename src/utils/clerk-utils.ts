@@ -2,11 +2,7 @@ import type { Appearance } from "@clerk/types";
 
 export const getClerkComponentAppearance = (): Appearance => ({
   variables: {
-    colorPrimary: "#fff",
-    colorText: "#fff",
-    colorBackground: "#000",
-    colorTextSecondary: "#fff",
-    colorTextOnPrimaryBackground: "#fff",
+    colorBackground: "#0A0A0A",
   },
   elements: {
     navbar: { display: "none" },

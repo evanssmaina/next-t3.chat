@@ -7,14 +7,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useTRPC } from "@/server/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
 import { useState } from "react";
 
-// Define types inside the same file
+// Define types
 interface Source {
   sourceType: string;
   id: string;
@@ -22,19 +21,61 @@ interface Source {
 }
 
 interface Metadata {
-  url: string;
-  title: string;
-  description: string;
-  favicon: string;
-  finalUrl: string;
-  error?: string;
+  title?: string;
+  description?: string;
+  favicon?: string;
+  finalUrl?: string;
+}
+
+interface BatchMetadataResponse {
+  [url: string]: Metadata;
 }
 
 interface AISourcesListProps {
   sources: Source[];
 }
 
-// Source detail component for the sheet view
+// Batch fetcher function
+const fetchBatchMetadata = async (
+  urls: string[],
+): Promise<BatchMetadataResponse> => {
+  const res = await fetch("/api/metadata/batch", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ urls }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch batch metadata");
+  }
+
+  return res.json();
+};
+
+// Custom hook for batch metadata fetching
+function useBatchSourceMetadata(sources: Source[]) {
+  const urls = sources.map((source) => source.url);
+
+  const { data, error, isLoading } = useQuery({
+    queryKey: ["batch-metadata", urls],
+    queryFn: () => fetchBatchMetadata(urls),
+    enabled: urls.length > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: 2,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    metadataMap: data || {},
+    isError: !!error,
+    isLoading,
+  };
+}
+
+// Source detail component
 const SourceDetail = ({
   source,
   index,
@@ -46,60 +87,105 @@ const SourceDetail = ({
   metadata?: Metadata;
   isLoading: boolean;
 }) => {
+  if (isLoading) {
+    return (
+      <div className="flex items-start bg-secondary/50 border border-muted rounded-md p-3 w-full">
+        <div className="flex flex-col gap-3 w-full">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-medium">{index + 1}.</span>
+            <Skeleton className="h-6 w-64" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+          <div className="flex gap-2 items-center">
+            <Skeleton className="w-4 h-4 rounded" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Link
       href={metadata?.finalUrl || source.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-start bg-muted/50 border border-muted rounded-md p-3 hover:bg-muted transition-colors w-full"
+      className="flex items-start bg-secondary/50 border border-muted rounded-md p-3 hover:bg-muted transition-colors w-full"
     >
       <div className="flex flex-col gap-3 w-full">
-        <h1 className="text-base font-medium text-foreground">
-          {index + 1}.{" "}
-          {isLoading ? (
-            <Skeleton className="h-6 w-64 inline-block" />
-          ) : (
-            metadata?.title || metadata?.finalUrl || source.url
-          )}
+        <h1 className="text-base font-medium text-foreground truncate">
+          {index + 1}. {metadata?.title || metadata?.finalUrl || source.url}
         </h1>
 
-        {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        ) : (
-          metadata?.description && (
-            <p className="text-sm text-foreground line-clamp-3">
-              {truncate(metadata.description, 150)}
-            </p>
-          )
+        {metadata?.description && (
+          <p className="text-sm text-foreground truncate">
+            {truncate(metadata.description, 150)}
+          </p>
         )}
 
-        <div className="flex gap-2">
-          <div className="size-4 flex-shrink-0 bg-white rounded overflow-hidden shadow-sm mt-0.5">
-            {isLoading ? (
-              <Skeleton className="w-6 h-6" />
-            ) : (
+        <div className="flex gap-2 items-center">
+          <div className="size-4 flex-shrink-0 bg-white rounded overflow-hidden shadow-sm">
+            {metadata?.favicon && (
               <Image
-                src={metadata?.favicon || ""}
+                src={metadata.favicon}
                 alt={metadata?.title || ""}
-                width={24}
-                height={24}
-                className="w-6 h-6"
+                width={16}
+                height={16}
+                className="w-4 h-4 object-cover"
               />
             )}
           </div>
-          <p className="text-sm text-muted-foreground mb-2">
-            {isLoading ? (
-              <Skeleton className="h-4 w-48" />
-            ) : metadata?.finalUrl ? (
-              new URL(metadata.finalUrl).hostname
-            ) : null}
+          <p className="text-sm text-muted-foreground">
+            {metadata?.finalUrl
+              ? new URL(metadata.finalUrl).hostname
+              : new URL(source.url).hostname}
           </p>
         </div>
       </div>
     </Link>
+  );
+};
+
+// Favicon item component
+const FaviconItem = ({
+  source,
+  index,
+  metadata,
+  isLoading,
+}: {
+  source: Source;
+  index: number;
+  metadata?: Metadata;
+  isLoading: boolean;
+}) => {
+  return (
+    <div
+      className="w-6 h-6 rounded-full bg-white shadow-sm border border-border overflow-hidden flex items-center justify-center"
+      style={{
+        position: "relative",
+        marginLeft: index === 0 ? "0" : "-8px",
+        zIndex: 4 - index,
+      }}
+    >
+      {isLoading ? (
+        <Skeleton className="w-6 h-6" />
+      ) : metadata?.favicon ? (
+        <Image
+          src={metadata.favicon}
+          alt={metadata?.title || ""}
+          width={24}
+          height={24}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+          <span className="text-xs text-gray-500">?</span>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -109,64 +195,11 @@ const truncate = (text: string | undefined, maxLength: number): string => {
   return `${text.substring(0, maxLength)}...`;
 };
 
-const FaviconItem = ({
-  source,
-  index,
-  metadata,
-}: {
-  source: Source;
-  index: number;
-  metadata?: Metadata;
-}) => {
-  return (
-    <div
-      key={source.id}
-      className="w-6 h-6 rounded-sm bg-white shadow-sm border border-border overflow-hidden"
-      style={{
-        position: "relative",
-        marginLeft: index === 0 ? "0" : "-8px",
-        zIndex: 4 - index,
-      }}
-    >
-      {metadata?.favicon && (
-        <Image
-          src={metadata.favicon}
-          alt={metadata?.title || ""}
-          width={24}
-          height={24}
-          className="w-full h-full object-cover"
-        />
-      )}
-    </div>
-  );
-};
-
 export const AISourcesList: React.FC<AISourcesListProps> = ({ sources }) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-  // Extract URLs from sources
-  const urls = sources.map((source) => source.url);
-
-  // Fetch metadata for all URLs using tRPC
-
-  const trpc = useTRPC();
-  const {
-    data: metadataResults,
-    isLoading,
-    error,
-  } = useQuery(
-    trpc.metadata.fetch.queryOptions({
-      urls: urls,
-    }),
-  );
-
-  // Create a map for easy lookup of metadata by URL
-  const metadataMap = new Map<string, Metadata>();
-  if (metadataResults) {
-    metadataResults.forEach((result) => {
-      metadataMap.set(result.url, result);
-    });
-  }
+  // Fetch all metadata in a single batch request
+  const { metadataMap, isLoading, isError } = useBatchSourceMetadata(sources);
 
   return (
     <div className="flex flex-col gap-3 w-full">
@@ -180,7 +213,8 @@ export const AISourcesList: React.FC<AISourcesListProps> = ({ sources }) => {
               key={source.id}
               source={source}
               index={index}
-              metadata={metadataMap.get(source.url)}
+              metadata={metadataMap[source.url]}
+              isLoading={isLoading}
             />
           ))}
         </div>
@@ -194,18 +228,23 @@ export const AISourcesList: React.FC<AISourcesListProps> = ({ sources }) => {
           side="right"
           className="flex w-[600px] max-w-full flex-col p-0 sm:max-w-[600px] md:max-w-[600px] lg:max-w-[600px]"
         >
-          <SheetHeader className="sticky inset-x-0 top-0 bg-background">
+          <SheetHeader className="sticky inset-x-0 top-0 bg-background p-6">
             <SheetTitle className="text-xl">
               Sources ({sources.length})
             </SheetTitle>
           </SheetHeader>
-          <div className="flex flex-col gap-3 px-2 overflow-y-auto py-5">
+          <div className="flex flex-col gap-3 px-3 pb-6 overflow-y-auto">
+            {isError && (
+              <div className="text-sm text-red-500 p-3 bg-red-50 rounded-md">
+                Failed to load source metadata.
+              </div>
+            )}
             {sources.map((source, index) => (
               <SourceDetail
                 key={`source-detail-${source.id}`}
                 source={source}
                 index={index}
-                metadata={metadataMap.get(source.url)}
+                metadata={metadataMap[source.url]}
                 isLoading={isLoading}
               />
             ))}

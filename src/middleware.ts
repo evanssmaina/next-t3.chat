@@ -1,6 +1,23 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { logger } from "@/lib/axiom/server";
+import { transformMiddlewareRequest } from "@axiomhq/nextjs";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
-export default clerkMiddleware();
+const isProtectedRoute = createRouteMatcher(["/recents(.*)", "/settings(.*)"]);
+
+export default clerkMiddleware(
+  async (auth, req, event) => {
+    if (isProtectedRoute(req)) await auth.protect();
+
+    logger.info(...transformMiddlewareRequest(req));
+
+    event.waitUntil(logger.flush());
+    return NextResponse.next();
+  },
+  {
+    contentSecurityPolicy: {},
+  },
+);
 
 export const config = {
   matcher: [

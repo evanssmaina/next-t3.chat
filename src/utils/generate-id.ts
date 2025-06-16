@@ -6,6 +6,7 @@ export const nanoid = customAlphabet(
 
 const prefixes = {
   chat: "chat",
+  stream: "stream",
 } as const;
 
 export function generateId(prefix: keyof typeof prefixes, length = 16): string {

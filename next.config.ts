@@ -24,24 +24,21 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/phg/ingest/static/:path*",
+        source: "/ingest/static/:path*",
         destination: "https://us-assets.i.posthog.com/static/:path*",
       },
       {
-        source: "/phg/ingest/:path*",
+        source: "/ingest/:path*",
         destination: "https://us.i.posthog.com/:path*",
       },
       {
-        source: "/phg/ingest/decide",
+        source: "/ingest/decide",
         destination: "https://us.i.posthog.com/decide",
       },
     ];
   },
   images: {
     remotePatterns: [
-      {
-        hostname: "assets.next-t3.chat",
-      },
       {
         protocol: "https",
         hostname: "**",
