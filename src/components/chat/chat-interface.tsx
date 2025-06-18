@@ -1,6 +1,6 @@
 import { availableModels } from "@/ai/providers";
 import { cn } from "@/lib/utils";
-import type { ChatRequestOptions, UIMessage } from "ai";
+import type { ChatRequestOptions, JSONValue, UIMessage } from "ai";
 import { useRef } from "react";
 import {
   ChatContainerContent,
@@ -41,8 +41,8 @@ export function ChatInterface({
 
   return (
     <div ref={chatContainerRef} className="relative flex-1 overflow-y-auto">
-      <div className="h-full">
-        <div className="space-y-10  px-5 py-20">
+      <ChatContainerRoot className="h-full">
+        <ChatContainerContent className="space-y-10  px-5 py-20">
           {messages.map((message, index) => {
             const isLoading = status === "streaming";
             const isLastMessage = index === messages.length - 1;
@@ -128,9 +128,8 @@ export function ChatInterface({
               <AILoading status={status} messages={messages} />
             )}
           </div>
-        </div>
-        <ScrollButton />
-      </div>
+        </ChatContainerContent>
+      </ChatContainerRoot>
     </div>
   );
 }

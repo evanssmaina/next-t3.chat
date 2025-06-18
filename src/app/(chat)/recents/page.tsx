@@ -5,7 +5,7 @@ import { ChatList } from "@/components/recents/chats-list";
 import { SearchInput } from "@/components/recents/search-input";
 import { Button } from "@/components/ui/button";
 import { HydrateClient, prefetch } from "@/trpc/server";
-import { trpc } from "@/trpc/server-utils";
+import { trpc } from "@/trpc/server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -25,7 +25,7 @@ export default function Recents() {
   );
 
   return (
-    <div className="w-full max-w-3xl mx-auto mt-20 h-full">
+    <div className="w-full max-w-4xl mx-auto mt-10 h-screen">
       <div className="mb-5 py-5 bg-background ">
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-3xl mb-5">Your chat history</h1>
@@ -40,18 +40,9 @@ export default function Recents() {
           <SearchInput />
         </Suspense>
       </div>
-      <HydrateClient>
-        <Await
-          fallback={
-            <div className="p-5 w-full mx-auto">
-              <Icons.loader className="animate-spin size-5" />
-            </div>
-          }
-          errorComponent={<ErrorFallback />}
-        >
-          <ChatList />
-        </Await>
-      </HydrateClient>
+      <Suspense>
+        <ChatList />
+      </Suspense>
     </div>
   );
 }

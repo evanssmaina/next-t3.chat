@@ -1,116 +1,70 @@
 "use client";
 
-import { availableModels } from "@/ai/providers";
 import { Icons } from "@/components/icons";
-import { useAutoResume } from "@/hooks/use-auto-resume";
-import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useTRPC } from "@/trpc/client";
-import { generateId } from "@/utils/generate-id";
-import { type UseChatOptions, useChat } from "@ai-sdk/react";
 import { useQuery } from "@tanstack/react-query";
-import { type Attachment, type UIMessage, createIdGenerator } from "ai";
-import { parseAsString, useQueryState } from "nuqs";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { ChatInput } from "./chat-input";
 import { ChatInterface } from "./chat-interface";
+import { useChat } from "./chat-provider";
 import { InitialState } from "./initial-state";
 
-export function Chat() {
+export function Chat({ id }: { id?: string | undefined } = {}) {
+  // Router
+  const router = useRouter();
+
+  // TRPC
   const trpc = useTRPC();
 
-  const [chatId, setChatId] = useQueryState(
-    "chat",
-    parseAsString.withDefault(""),
-  );
-  const [selectedModel, setSelectedModel] = useLocalStorage(
-    "next-t3-chat-selected-model",
-    availableModels[0].id,
-  );
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [isStartingChat, setIsStartingChat] = useState(false);
+  const {
+    chatId,
+    attachments,
+    isStartingChat,
+    selectedModel,
+    setSelectedModel,
+    setAttachments,
+    handleSubmit,
+    handleValueChange,
+    input,
+    status,
+    stop,
+    reload,
+    error,
+    messages,
+    setInitialMessages,
+    setIsStartingChat,
+  } = useChat();
 
+  // Query
   const {
     data: fetchedMessages,
     isLoading,
     error: queryError,
   } = useQuery(
     trpc.message.getById.queryOptions(
-      { chatId },
+      { chatId: chatId ?? "" },
       {
-        enabled: !!chatId?.trim() && !isStartingChat,
+        enabled: isStartingChat,
         refetchOnWindowFocus: false,
       },
     ),
   );
 
-  const chatOptions: UseChatOptions = useMemo(
-    () => ({
-      id: chatId ?? undefined,
-      sendExtraMessageFields: true,
-      experimental_throttle: 50,
-      generateId: createIdGenerator({
-        prefix: "msgc",
-        separator: "_",
-      }),
-      experimental_prepareRequestBody: ({
-        messages,
-      }: { messages: UIMessage[] }) => {
-        const requestBody = {
-          message: messages[messages.length - 1],
-          chatId: chatId,
-          model: selectedModel,
-        };
-        return requestBody;
-      },
-      onError: (error) => {
-        console.log(error.message);
-        toast.error("An error occured, please try again later");
-      },
-    }),
-    [chatId, selectedModel],
-  );
-
-  const {
-    input,
-    error,
-    messages,
-    reload,
-    status,
-    stop,
-    setInput,
-    handleSubmit,
-    setMessages,
-    experimental_resume,
-    data,
-  } = useChat(chatOptions);
-
-  useAutoResume({
-    autoResume: true,
-    initialMessages: [],
-    experimental_resume,
-    data,
-    setMessages,
-  });
-
   // Set messages when data is fetched
   useEffect(() => {
-    if (chatId?.trim() && fetchedMessages && !isStartingChat) {
+    if (isStartingChat) {
       // If messages exist, set them
-      if (fetchedMessages.length > 0) {
-        setMessages(fetchedMessages);
+      if (fetchedMessages) {
+        setInitialMessages(fetchedMessages);
       }
     }
 
     if (queryError) {
       toast.error("Failed to load chat messages");
     }
-  }, [chatId, fetchedMessages, setMessages, queryError]);
-
-  const handleValueChange = useCallback(
-    (value: string) => setInput(value),
-    [setInput],
-  );
+  }, [isStartingChat, fetchedMessages, setInitialMessages]);
 
   const handleStartChat = useCallback(
     async (
@@ -124,17 +78,33 @@ export function Chat() {
       e?.stopPropagation();
 
       setIsStartingChat(true);
-      const id = generateId("chat");
-      await setChatId(id);
 
-      console.log(attachments);
+      const chatId = await fetch("/api/chat/create", {
+        method: "POST",
+      }).then((res) => res.json());
+
+      router.push(`/chat/${chatId}`);
+
       handleSubmit(e, {
         experimental_attachments: attachments,
+        body: {
+          chatId: chatId,
+          model: selectedModel,
+        },
       });
 
       setIsStartingChat(false);
     },
-    [handleSubmit, input, status, setChatId, setIsStartingChat, attachments],
+    [
+      handleSubmit,
+      input,
+      status,
+      router,
+      chatId,
+      setIsStartingChat,
+      attachments,
+      selectedModel,
+    ],
   );
 
   const handleChatInterfaceSend = useCallback(
@@ -147,12 +117,15 @@ export function Chat() {
       e?.preventDefault();
       e?.stopPropagation();
 
-      console.log(attachments);
       handleSubmit(e, {
         experimental_attachments: attachments,
+        body: {
+          chatId: id,
+          model: selectedModel,
+        },
       });
     },
-    [handleSubmit, input, status, attachments],
+    [handleSubmit, input, status, id, attachments, selectedModel],
   );
 
   const handleStartChateKeyDown = useCallback(
@@ -178,16 +151,19 @@ export function Chat() {
   );
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden justify-center">
-      {chatId?.trim() && !isStartingChat && isLoading && messages.length === 0 ? (
+    <div className="flex h-screen justify-center flex-col overflow-hidden">
+      {!isStartingChat && isLoading ? (
         // State 1: Loading an existing chat
         <div className="flex h-screen flex-col overflow-hidden justify-center">
           <div className="flex items-center justify-center flex-1 gap-2">
             <Icons.loader className="animate-spin size-5" /> Loading chats...
           </div>
         </div>
+      ) : !isStartingChat && !chatId?.trim() ? (
+        // State 2: Initial state for new chat
+        <InitialState />
       ) : messages.length > 0 ? (
-        // State 2: Chat has messages to display
+        // State 3: Chat has messages to display
         <ChatInterface
           messages={messages}
           error={error}
@@ -195,10 +171,13 @@ export function Chat() {
           status={status}
         />
       ) : (
-        // State 3: No messages, show the initial empty state
-        <InitialState />
+        // State 4: No messages found
+        <div className="flex h-screen flex-col overflow-hidden justify-center">
+          <div className="flex items-center justify-center flex-1 gap-2">
+            No messages found
+          </div>
+        </div>
       )}
-
       <div className="bg-background z-10 shrink-0 px-3 pb-3 md:px-5 md:pb-5">
         <div className="mx-auto max-w-3xl w-full">
           <ChatInput
@@ -220,6 +199,6 @@ export function Chat() {
           />
         </div>
       </div>
-    </main>
+    </div>
   );
 }

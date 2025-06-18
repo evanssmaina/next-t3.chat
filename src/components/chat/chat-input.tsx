@@ -552,6 +552,7 @@ export function ChatInput({
                     (status === "ready" || status === "error") &&
                     input.trim()
                   ) {
+                    updateAttachments(); // Ensure attachments are updated before sending
                     handleSend();
 
                     if (files.length > 0) {

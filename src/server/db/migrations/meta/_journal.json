@@ -8,6 +8,13 @@
       "when": 1749979296227,
       "tag": "0000_dizzy_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1750129183613,
+      "tag": "0001_careless_risque",
+      "breakpoints": true
     }
   ]
 }

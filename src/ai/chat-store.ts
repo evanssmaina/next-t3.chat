@@ -2,9 +2,11 @@ import { db } from "@/server/db";
 import { stream, chat, message } from "@/server/db/schemas";
 import { index } from "@/trpc/routers/chats";
 import { getQueryClient } from "@/trpc/server";
-import { trpc } from "@/trpc/server-utils";
+import { trpc } from "@/trpc/server";
+import { auth } from "@clerk/nextjs/server";
 import type { Message as AIMessage } from "ai";
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { v4 as uuidv4 } from "uuid";
 
 interface SaveChatParams {
   chatId: string;
@@ -329,4 +331,28 @@ export async function createStreamId({
     console.error("Error creating streamId:", error);
     throw error;
   }
+}
+
+export async function createChat() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("User not authenticated");
+  }
+
+  const [data] = await db
+    .insert(chat)
+    .values({
+      id: uuidv4(),
+      userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      title: "New Chat",
+    })
+    .returning({ id: chat.id })
+    .execute();
+
+  console.log(data.id);
+
+  return data.id;
 }

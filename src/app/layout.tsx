@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/styles/globals.css";
-import { MainNav } from "@/components/main-nav";
 import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/config/site";
 import { WebVitals } from "@/lib/axiom/client";
@@ -93,10 +92,7 @@ export default function RootLayout({
                 "antialiased bg-background text-foreground dark font-sans",
               )}
             >
-              <NuqsAdapter>
-                <MainNav />
-                {children}
-              </NuqsAdapter>
+              <NuqsAdapter>{children}</NuqsAdapter>
               <Toaster />
             </body>
           </html>

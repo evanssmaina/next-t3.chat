@@ -22,9 +22,9 @@ export default function SettingsLayout({
   ];
 
   return (
-    <div className="flex flex-col gap-5 mt-20 w-full max-w-3xl mx-auto">
+    <div className="flex flex-col gap-5 mt-16 w-full max-w-4xl mx-auto">
       <div className="flex flex-col gap-3">
-        <h1 className="text-3xl font-medium">Settings</h1>
+        <h1 className="text-3xl">Settings</h1>
       </div>
       <SecondaryNav links={links} />
       {children}

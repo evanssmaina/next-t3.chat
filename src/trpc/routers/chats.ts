@@ -1,5 +1,8 @@
 import { upstashSearch } from "@/lib/search";
+import { and, chat, db, eq } from "@/server/db";
 import { protectedProcedure, router } from "@/trpc/init";
+import { TRPCError } from "@trpc/server";
+import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 
 // Content types for different document types in the index
@@ -29,10 +32,89 @@ type Metadata = {
   chatTitle?: string;
 };
 
-export const index = upstashSearch.index<Content, Metadata>("chats");
+export const index = upstashSearch.index<Content, Metadata>("chats-messages");
 
 export const chatRouter = router({
-  // Search for chats (chat-level results)
+  // Create a new chat
+  create: protectedProcedure
+    .input(
+      z.object({
+        title: z.string().min(1).max(100),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const { auth } = ctx;
+      const { userId } = auth;
+      const { title } = input;
+
+      try {
+        const data = await db
+          .insert(chat)
+          .values({
+            userId,
+            title,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .execute();
+
+        return data;
+      } catch (error) {
+        console.error("Database insert error:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create chat",
+        });
+      }
+    }),
+
+  get: protectedProcedure.query(async ({ input, ctx }) => {
+    const { auth } = ctx;
+    const { userId } = auth;
+
+    try {
+      const data = await db.query.chat.findMany({
+        where: eq(chat.userId, userId),
+        limit: 20,
+        orderBy: (chat, { desc }) => [desc(chat.createdAt)],
+      });
+
+      return data;
+    } catch (error) {
+      console.error("Database query error:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch chat",
+      });
+    }
+  }),
+
+  getById: protectedProcedure
+    .input(
+      z.object({
+        chatId: z.string(),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      const { chatId } = input;
+      const { auth } = ctx;
+      const { userId } = auth;
+
+      try {
+        const data = await db.query.chat.findFirst({
+          where: and(eq(chat.userId, userId), eq(chat.id, chatId)),
+        });
+
+        return data;
+      } catch (error) {
+        console.error("Database query error:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch chat",
+        });
+      }
+    }),
+
   search: protectedProcedure
     .input(
       z.object({

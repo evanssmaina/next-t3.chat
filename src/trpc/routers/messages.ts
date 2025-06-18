@@ -1,5 +1,6 @@
-import { loadPreviousMessages } from "@/ai/chat-store";
+import { and, db, eq, message } from "@/server/db";
 import { protectedProcedure, router } from "@/trpc/init";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 export const messageRouter = router({
@@ -15,11 +16,26 @@ export const messageRouter = router({
       const { chatId } = input;
 
       try {
-        const messages = await loadPreviousMessages({ chatId, userId });
+        const messages = await db
+          .select()
+          .from(message)
+          .where(and(eq(message.chatId, chatId), eq(message.userId, userId)))
+          .execute();
 
-        return messages;
+        const data = messages.map(
+          ({ chatId, userId, experimentalAttachments, ...rest }) => ({
+            ...rest,
+            experimental_attachments: experimentalAttachments,
+          }),
+        );
+
+        return data;
       } catch (error) {
         console.error("Database query error:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch messages",
+        });
       }
     }),
 });

@@ -38,6 +38,7 @@ export const POST = withAxiom(async (req) => {
     });
   }
 
+  console.log(message, chatId, model);
   if (!message || !chatId || !model) {
     return new NextResponse("Message and chat ID and model are required", {
       status: 400,

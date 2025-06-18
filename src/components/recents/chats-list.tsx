@@ -6,12 +6,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRecentsParams } from "@/hooks/use-recents-params";
 import { useTRPC } from "@/trpc/client";
 import { FADE_ANIMATION } from "@/utils/animation";
-import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Bot, MessageSquare, Search, User } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
+import { Icons } from "../icons";
 
 export function ChatList() {
   const router = useRouter();
@@ -25,7 +26,8 @@ export function ChatList() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useSuspenseInfiniteQuery(
+    isLoading,
+  } = useInfiniteQuery(
     trpc.chat.search.infiniteQueryOptions(
       {
         limit: 10,
@@ -88,6 +90,12 @@ export function ChatList() {
                 ? `No results found for "${query}"`
                 : `Found ${chats.length} ${chats.length === 1 ? "chat" : "chats"} matching "${query}"`}
             </span>
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="flex items-center justify-center flex-1 gap-2">
+            <Icons.loader className="animate-spin size-5" />
           </div>
         )}
 
@@ -169,21 +177,9 @@ export function ChatList() {
           </div>
         ))}
 
-        {/* Load more button for browsing (not search) */}
-        {!hasSearchQuery && hasNextPage && (
-          <Button
-            variant="outline"
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage || !hasNextPage}
-            className="w-fit mt-5"
-          >
-            {isFetchingNextPage ? "Loading more..." : "Load more"}
-          </Button>
-        )}
-
         {/* No results message */}
         {chats.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-12 rounded-lg text-muted-foreground border">
             {hasSearchQuery ? (
               <div>
                 <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -202,6 +198,18 @@ export function ChatList() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Load more button for browsing (not search) */}
+        {!hasSearchQuery && hasNextPage && chats.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage || !hasNextPage}
+            className="w-fit mt-5"
+          >
+            {isFetchingNextPage ? "Loading more..." : "Load more"}
+          </Button>
         )}
       </motion.div>
     </ScrollArea>
