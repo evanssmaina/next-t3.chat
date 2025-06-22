@@ -20,8 +20,6 @@ export const env = createEnv({
     AWS_REGION: z.string().min(1),
     AWS_BUCKET_NAME: z.string().min(1),
     AWS_BUCKET_URL: z.url(),
-
-    PORT: z.string().min(1),
   },
 
   client: {
@@ -62,8 +60,6 @@ export const env = createEnv({
     AWS_REGION: process.env.AWS_REGION,
     AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
     AWS_BUCKET_URL: process.env.AWS_BUCKET_URL,
-
-    PORT: process.env.PORT,
   },
   extends: [vercel(), upstashRedis()],
 });
