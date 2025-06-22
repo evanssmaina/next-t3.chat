@@ -1,14 +1,8 @@
 import { google } from "@ai-sdk/google";
-import { xai } from "@ai-sdk/xai";
 import { createProviderRegistry, customProvider } from "ai";
 
 export const registry = createProviderRegistry(
   {
-    xai: customProvider({
-      languageModels: {
-        "grok-3-mini": xai("grok-3-mini"),
-      },
-    }),
     google: customProvider({
       languageModels: {
         "gemini-2.0-flash": google("gemini-2.0-flash"),

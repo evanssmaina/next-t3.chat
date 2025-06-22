@@ -20,7 +20,6 @@ const nextConfig: NextConfig = {
     "keyv",
     "pino",
     "pino-pretty",
-    "@axiomhq/pino",
   ],
   skipTrailingSlashRedirect: true,
   async rewrites() {

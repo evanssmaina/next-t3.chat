@@ -1,4 +1,5 @@
 import { createEnv } from "@t3-oss/env-nextjs";
+import { upstashRedis, vercel } from "@t3-oss/env-nextjs/presets-zod";
 import { z } from "zod/v4";
 
 export const env = createEnv({
@@ -7,9 +8,6 @@ export const env = createEnv({
 
     CLERK_SECRET_KEY: z.string().min(1),
     CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1),
-
-    UPSTASH_REDIS_REST_URL: z.url(),
-    UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
 
     UPSTASH_SEARCH_REST_URL: z.url(),
     UPSTASH_SEARCH_REST_TOKEN: z.string().min(1),
@@ -22,6 +20,8 @@ export const env = createEnv({
     AWS_REGION: z.string().min(1),
     AWS_BUCKET_NAME: z.string().min(1),
     AWS_BUCKET_URL: z.url(),
+
+    PORT: z.string().min(1),
   },
 
   client: {
@@ -46,9 +46,6 @@ export const env = createEnv({
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SIGNING_SECRET: process.env.CLERK_WEBHOOK_SIGNING_SECRET,
 
-    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
-    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
-
     UPSTASH_SEARCH_REST_URL: process.env.UPSTASH_SEARCH_REST_URL,
     UPSTASH_SEARCH_REST_TOKEN: process.env.UPSTASH_SEARCH_REST_TOKEN,
 
@@ -65,5 +62,8 @@ export const env = createEnv({
     AWS_REGION: process.env.AWS_REGION,
     AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
     AWS_BUCKET_URL: process.env.AWS_BUCKET_URL,
+
+    PORT: process.env.PORT,
   },
+  extends: [vercel(), upstashRedis()],
 });

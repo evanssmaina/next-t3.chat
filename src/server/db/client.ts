@@ -9,6 +9,5 @@ neonConfig.webSocketConstructor = ws;
 export const db = drizzle({
   client: new Pool({ connectionString: env.DATABASE_URL }),
   schema,
-  logger: true,
   casing: "snake_case",
 });

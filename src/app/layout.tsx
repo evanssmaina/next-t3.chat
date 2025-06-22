@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/config/site";
+import { env } from "@/env";
 import { cn } from "@/lib/utils";
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { TRPCReactProvider } from "@/trpc/client";
@@ -79,6 +80,11 @@ export default function RootLayout({
       appearance={{
         baseTheme: dark,
       }}
+      publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      signInUrl={env.NEXT_PUBLIC_CLERK_SIGN_IN_URL}
+      signInFallbackRedirectUrl={
+        env.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL
+      }
     >
       <TRPCReactProvider>
         <PostHogProvider>
