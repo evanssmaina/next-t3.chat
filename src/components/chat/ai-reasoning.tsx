@@ -45,12 +45,10 @@ export const AIReasoning: React.FC<AIReasoningProps> = ({ reasoningParts }) => {
 
   return (
     <Reasoning>
-      <div className="flex w-full flex-col gap-3">
-        <ReasoningTrigger>Show reasoning</ReasoningTrigger>
-        <ReasoningContent className="ml-2 border-l-2 border-l-slate-200 px-2 pb-1 dark:border-l-slate-700">
-          {reasoningText}
-        </ReasoningContent>
-      </div>
+      <ReasoningTrigger>Show reasoning</ReasoningTrigger>
+      <ReasoningContent className="ml-2 border-l-2 border-l-slate-200 px-2 pb-1 dark:border-l-slate-700">
+        {reasoningText}
+      </ReasoningContent>
     </Reasoning>
   );
 };

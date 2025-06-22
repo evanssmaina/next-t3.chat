@@ -1,9 +1,12 @@
+import { logger } from "@/lib/logger";
 import { auth } from "@clerk/nextjs/server";
 import { TRPCError, initTRPC } from "@trpc/server";
 import superjson from "superjson";
 
+export const log = logger.child({ module: "trpc" });
+
 export async function createTRPCContext() {
-  return { auth: await auth() };
+  return { auth: await auth(), logger: log };
 }
 
 export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
@@ -19,6 +22,7 @@ const isAuthed = t.middleware(({ next, ctx }) => {
   return next({
     ctx: {
       auth: ctx.auth,
+      logger: ctx.logger,
     },
   });
 });

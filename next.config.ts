@@ -2,7 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  poweredByHeader: false,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -19,20 +18,23 @@ const nextConfig: NextConfig = {
     "metascraper-logo",
     "jsdom",
     "keyv",
+    "pino",
+    "pino-pretty",
+    "@axiomhq/pino",
   ],
   skipTrailingSlashRedirect: true,
   async rewrites() {
     return [
       {
-        source: "/ingest/static/:path*",
+        source: "/nt3/stc/:path*",
         destination: "https://us-assets.i.posthog.com/static/:path*",
       },
       {
-        source: "/ingest/:path*",
+        source: "/nt3/ig/:path*",
         destination: "https://us.i.posthog.com/:path*",
       },
       {
-        source: "/ingest/decide",
+        source: "/nt3/dcd",
         destination: "https://us.i.posthog.com/decide",
       },
     ];

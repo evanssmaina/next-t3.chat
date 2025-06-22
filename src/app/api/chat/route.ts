@@ -1,12 +1,12 @@
 import {
-  createStreamId,
   getStreamIdsByChatId,
   loadPreviousMessages,
   saveChat,
 } from "@/ai/chat-store";
 import { registry } from "@/ai/providers";
-import { logger, withAxiom } from "@/lib/axiom/server";
+import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
+import type { GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import { auth } from "@clerk/nextjs/server";
 import {
   type Message,
@@ -19,11 +19,14 @@ import {
 } from "ai";
 import { createDataStream } from "ai";
 import { differenceInSeconds } from "date-fns";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 
-export const POST = withAxiom(async (req) => {
+const log = logger.child({ module: "api/chat" });
+
+export async function POST(req: NextRequest) {
+  log.info("Starting chat");
   const {
     message,
     chatId,
@@ -33,37 +36,43 @@ export const POST = withAxiom(async (req) => {
   const { userId } = await auth();
 
   if (!userId) {
+    log.warn("Unauthorized. Please login to continue.");
     return new NextResponse("Unauthorized. Please login to continue.", {
       status: 401,
     });
   }
 
-  console.log(message, chatId, model);
+  log.info("Received message:", message);
+  log.info("Received chatId:", chatId);
+  log.info("Received model:", model);
+
   if (!message || !chatId || !model) {
+    log.warn("Missing message, chatId, or model");
     return new NextResponse("Message and chat ID and model are required", {
       status: 400,
     });
   }
 
-  const [previousMessages] = await Promise.all([
-    loadPreviousMessages({
-      chatId,
-      userId,
-    }),
-    createStreamId({
-      chatId,
-      userId,
-    }),
-  ]);
+  log.info("Fetching previous messages for chatId:", chatId);
+  const previousMessages = await loadPreviousMessages({
+    chatId,
+    userId,
+  });
 
+  log.info("Previous messages fetched for chatId:", chatId);
+
+  log.info("Appending client message");
   const messages = appendClientMessage({
     messages: !previousMessages ? [] : previousMessages,
     message,
   });
 
+  log.info("Client message appended");
+
+  log.info("Creating data stream response");
   return createDataStreamResponse({
     execute: (dataStream) => {
-      dataStream.writeMessageAnnotation({ aiModel: model });
+      dataStream.writeMessageAnnotation({ model });
 
       const result = streamText({
         model: registry.languageModel(model as any),
@@ -82,22 +91,28 @@ export const POST = withAxiom(async (req) => {
               includeThoughts: true,
               thinkingBudget: 10000,
             },
-          },
+          } satisfies GoogleGenerativeAIProviderOptions,
         },
         async onFinish({ response }) {
+          dataStream.writeMessageAnnotation({ model });
+          log.info("Saving chat messages to the db");
           try {
+            log.info("appending chat messages for saving to db");
             const messagesToSave = appendResponseMessages({
               messages: messages,
               responseMessages: response.messages,
             });
+            log.info("appended chat messages for saving to db");
 
+            log.info("Saving chat messages to the db");
             await saveChat({
               chatId: chatId,
               userId: userId,
               messages: messagesToSave,
             });
+            log.info("Saved chat messages to the db");
           } catch (error) {
-            logger.error("Error saving chat messages to the db:", error as any);
+            log.error("Error saving chat messages to the db:", error as any);
             // Don't throw here - we want to complete the stream even if saving fails
           }
         },
@@ -112,11 +127,11 @@ export const POST = withAxiom(async (req) => {
       });
     },
     onError: (error) => {
-      console.error(error);
+      log.error("Error in createDataStreamResponse:", error);
       return "Oops, an error occurred!";
     },
   });
-});
+}
 
 const streamContext = createResumableStreamContext({
   waitUntil: after,

@@ -6,10 +6,7 @@ import { user } from "./auth";
 export const chat = pgTable(
   "chat",
   {
-    id: text()
-      .primaryKey()
-      .notNull()
-      .$defaultFn(() => generateId("chat")),
+    id: text().primaryKey().notNull(),
     userId: text()
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),

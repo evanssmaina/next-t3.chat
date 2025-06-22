@@ -6,8 +6,7 @@ import {
   SidebarHeader,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useUser } from "@clerk/nextjs";
-import { MessageCircle, MessageSquareIcon, PlusCircleIcon } from "lucide-react";
+import { MessageSquareIcon, PlusCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSelectedLayoutSegment } from "next/navigation";
 import { NavChats } from "./nav-chats";
@@ -53,7 +52,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <NavMain isActive={isActive} items={navItems} />
-        <NavChats isActive={isActive} />
+        <NavChats />
       </SidebarContent>
       <NavFooter />
     </Sidebar>

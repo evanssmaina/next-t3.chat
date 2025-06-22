@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/config/site";
-import { WebVitals } from "@/lib/axiom/client";
 import { cn } from "@/lib/utils";
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { TRPCReactProvider } from "@/trpc/client";
@@ -84,7 +83,6 @@ export default function RootLayout({
       <TRPCReactProvider>
         <PostHogProvider>
           <html lang="en">
-            <WebVitals />
             <body
               className={cn(
                 geistMono.variable,

@@ -10,7 +10,7 @@ import { Suspense, useEffect } from "react";
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     posthog.init(env.NEXT_PUBLIC_POSTHOG_KEY, {
-      api_host: "/ingest",
+      api_host: "/nt3/ig",
       ui_host: "https://us.posthog.com",
       person_profiles: "always",
       capture_pageview: false,

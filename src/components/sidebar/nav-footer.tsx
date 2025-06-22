@@ -55,7 +55,7 @@ export function NavFooter() {
       <SidebarFooter className="flex items-center justify-center gap-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <Button size="lg" className="w-full">
+            <Button asChild size="lg" className="w-full">
               <Link href="/auth">Login</Link>
             </Button>
           </SidebarMenuItem>

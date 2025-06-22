@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { auth } from "@clerk/nextjs/server";
 import got from "got";
 import createMetascraper from "metascraper";
@@ -6,6 +7,8 @@ import metascraperImage from "metascraper-image";
 import metascraperTitle from "metascraper-title";
 import { NextResponse } from "next/server";
 import { z } from "zod/v4";
+
+const log = logger.child({ module: "api/metadata/batch" });
 
 const metascraper = createMetascraper([
   metascraperDescription(),
@@ -27,6 +30,7 @@ const batchUrlsSchema = z.object({
 
 async function fetchMetadata(url: string) {
   try {
+    log.info("Fetching metadata for URL:", url);
     const { body: html, url: finalUrl } = await got(url, {
       followRedirect: true,
       maxRedirects: 5,
@@ -48,7 +52,7 @@ async function fetchMetadata(url: string) {
       finalUrl: finalUrl,
     };
   } catch (error) {
-    console.error(`Failed to fetch metadata for ${url}:`, error);
+    log.error(`Failed to fetch metadata for ${url}:`, error);
     return {
       title: null,
       description: null,
@@ -70,14 +74,15 @@ function getFaviconUrl(url: string): string {
 // Batch endpoint for multiple URLs
 export async function POST(req: Request) {
   try {
+    log.info("Starting batch metadata fetch");
     const body = await req.json();
     const { userId } = await auth();
 
     if (!userId) {
+      log.warn("Unauthorized. Please login to continue.");
       return NextResponse.json(
         {
-          success: false,
-          message: "Unauthorized. Please login to continue.",
+          error: "Unauthorized. Please login to continue.",
         },
         {
           status: 401,
@@ -88,6 +93,7 @@ export async function POST(req: Request) {
     // Validate request body with Zod
     const validation = batchUrlsSchema.safeParse(body);
     if (!validation.success) {
+      log.warn("Invalid request body:", body);
       return NextResponse.json(
         {
           error: "Invalid request",
@@ -99,14 +105,17 @@ export async function POST(req: Request) {
     const { urls } = validation.data;
 
     // Fetch metadata for all URLs in parallel
+    log.info("Fetching metadata for URLs:", urls);
     const results = await Promise.allSettled(
       urls.map(async (url: string) => {
         const metadata = await fetchMetadata(url);
         return { url, metadata };
       }),
     );
+    log.info("Results:", results);
 
     // Build response map
+    log.info("Building response map:", results);
     const metadataMap = results.reduce(
       (acc, result) => {
         if (result.status === "fulfilled") {
@@ -116,10 +125,12 @@ export async function POST(req: Request) {
       },
       {} as Record<string, any>,
     );
+    log.info("Response map:", metadataMap);
 
+    log.info("Batch metadata fetch completed successfully");
     return NextResponse.json(metadataMap);
   } catch (error) {
-    console.error("Batch metadata fetch error:", error);
+    log.error("Batch metadata fetch error:", error);
     return NextResponse.json(
       { error: "Invalid request format" },
       { status: 400 },

@@ -52,7 +52,7 @@ export function ChatInterface({
               <MessageComponent
                 key={message.id}
                 className={cn(
-                  "mx-auto flex w-full max-w-3xl flex-col gap-2 px-6",
+                  "mx-auto flex w-full max-w-3xl flex-col justify-start gap-2 px-6",
                 )}
               >
                 {message.role === "user" ? (
