@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/prompt-input";
 import { env } from "@/env";
 import { useAuth } from "@clerk/nextjs";
-import type { Attachment } from "ai";
 import {
   ArrowUpIcon,
   FileText,
@@ -24,12 +23,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import {
-  type Dispatch,
-  type SetStateAction,
-  useCallback,
-  useState,
-} from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";

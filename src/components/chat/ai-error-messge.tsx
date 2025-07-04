@@ -14,7 +14,9 @@ export function AIErrorMessage({ reload }: AIErrorMessageProps) {
           <div className="flex items-center gap-2">
             <span>Something went wrong</span>
           </div>
-          <p>We couldn't process your request. Please try again.</p>
+          <p className="text-sm">
+            We couldn't process your request. Please try again.
+          </p>
           <Button
             type="button"
             onClick={() => reload()}

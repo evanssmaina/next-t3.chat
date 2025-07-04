@@ -1,14 +1,14 @@
 ![hero](github.png)
 
 <p align="center">
-	<h1 align="center"><b>next-t3.chat</b></h1>
+	<h1 align="center"><b>nt3</b></h1>
 <p align="center">
      A better open-source T3 Chat
     <br />
     <br />
-    <a href="https://next-t3.chat">Website</a>
+    <a href="https://nt3.chat">Website</a>
     ·
-    <a href="https://github.com/evanssmaina/next-t3.chat/issues">Issues</a>
+    <a href="https://github.com/evanssmaina/nt3/issues">Issues</a>
   </p>
 </p>
 
