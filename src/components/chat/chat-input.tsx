@@ -33,23 +33,8 @@ import {
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { useChat } from "./chat-provider";
 import { ProvidersSelect } from "./providers-select";
-
-interface ChatInputProps {
-  status: "submitted" | "streaming" | "ready" | "error";
-  stop: () => void;
-  input: string;
-  handleValueChange: (value: string) => void;
-  handleSend: (
-    e?:
-      | React.FormEvent<HTMLFormElement>
-      | React.MouseEvent<HTMLButtonElement, MouseEvent>,
-  ) => void;
-  handleKeyDown: (e: React.KeyboardEvent) => void;
-  selectedModel: string;
-  setSelectedModel: (value: string | ((val: string) => string)) => void;
-  setAttachments: Dispatch<SetStateAction<Attachment[]>>;
-}
 
 // File upload constraints
 const MAX_FILES = 5;
@@ -62,17 +47,19 @@ const ACCEPTED_FILE_TYPES = [
 ];
 const ACCEPTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".pdf"];
 
-export function ChatInput({
-  input,
-  handleValueChange,
-  handleKeyDown,
-  status,
-  handleSend,
-  stop,
-  selectedModel,
-  setSelectedModel,
-  setAttachments,
-}: ChatInputProps) {
+export function ChatInput() {
+  const {
+    selectedModel,
+    setSelectedModel,
+    setAttachments,
+    handleValueChange,
+    input,
+    status,
+    stop,
+    messages,
+    handleStartChat,
+    handleChatInterfaceSend,
+  } = useChat();
   const { isSignedIn } = useAuth();
   const [files, setFiles] = useState<
     Array<{
@@ -86,6 +73,34 @@ export function ChatInput({
       objectUrl?: string;
     }>
   >([]);
+
+  const handleStartChateKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleStartChat();
+      }
+    },
+    [handleStartChat],
+  );
+
+  const handleChatInterfaceKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleChatInterfaceSend();
+      }
+    },
+    [handleChatInterfaceSend],
+  );
+
+  const handleSend =
+    messages.length > 0 ? handleChatInterfaceSend : handleStartChat;
+
+  const handleKeyDown =
+    messages.length > 0 ? handleChatInterfaceKeyDown : handleStartChateKeyDown;
 
   const updateAttachments = useCallback(() => {
     const successfulUploads = files.filter(

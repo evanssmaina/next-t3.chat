@@ -4,7 +4,6 @@ import { Chat } from "@/components/chat/chat";
 import { useChat } from "@/components/chat/chat-provider";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import type { Message } from "ai";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
 
@@ -15,9 +14,10 @@ export default function ChatPage() {
 
   const urlChatId = params.chatId;
 
-  // Memoize this calculation to avoid recalculating on every render
+  // Improved logic for determining if this is a new chat
   const isCurrentlyNewChat = useMemo(() => {
-    return isNewChat && urlChatId === chatId;
+    // If we have a URL chatId and it matches the provider's chatId, and isNewChat is true
+    return isNewChat && urlChatId && urlChatId === chatId;
   }, [isNewChat, urlChatId, chatId]);
 
   // Sync URL with provider state and handle new chat logic
@@ -31,16 +31,21 @@ export default function ChatPage() {
       isCurrentlyNewChat,
     });
 
+    // If this is a new chat, reset the flag and don't fetch
     if (isCurrentlyNewChat) {
       console.log("New chat detected - no API call needed");
       setIsNewChat(false);
       return;
     }
 
-    // Sync provider state with URL
+    // Sync provider state with URL if they don't match
     if (urlChatId !== chatId) {
       console.log("Syncing chatId with URL");
       setChatId(urlChatId);
+      // Reset isNewChat when navigating to an existing chat
+      if (isNewChat) {
+        setIsNewChat(false);
+      }
     }
   }, [
     urlChatId,
@@ -51,8 +56,14 @@ export default function ChatPage() {
     isCurrentlyNewChat,
   ]);
 
-  // Only fetch when we have a chatId and it's not a new chat
-  const shouldFetch = !isCurrentlyNewChat && !!chatId;
+  // Determine if we should fetch data
+  const shouldFetch = useMemo(() => {
+    return (
+      !!urlChatId && // We have a URL chatId
+      !isCurrentlyNewChat && // It's not a new chat
+      urlChatId === chatId // The URL matches our provider state
+    );
+  }, [urlChatId, isCurrentlyNewChat, chatId]);
 
   const {
     data: fetchedMessages,
@@ -63,10 +74,8 @@ export default function ChatPage() {
       { chatId: chatId },
       {
         enabled: shouldFetch,
-        // Add some additional options for better UX
-        staleTime: 30000, // Consider data fresh for 30 seconds
+        staleTime: 30000,
         retry: (failureCount, error) => {
-          // Don't retry if it's a 404 (chat doesn't exist)
           if (
             error?.message?.includes("404") ||
             error?.message?.includes("not found")
@@ -79,9 +88,9 @@ export default function ChatPage() {
     ),
   );
 
-  // Show loading only when actually fetching data
-  if (isLoading && shouldFetch) {
-    console.log(isLoading, shouldFetch);
+  // Show loading only when we should be fetching and are actually loading
+  if (shouldFetch && isLoading) {
+    console.log("Showing loading spinner:", { isLoading, shouldFetch });
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -92,7 +101,7 @@ export default function ChatPage() {
     );
   }
 
-  if (queryError) {
+  if (queryError && shouldFetch) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center text-red-600">
@@ -108,7 +117,7 @@ export default function ChatPage() {
     );
   }
 
-  // For new chats, pass empty array. For existing chats, pass fetched messages or empty array
+  // For new chats or when we don't have data yet, use empty array
   const initialMessages = isCurrentlyNewChat ? [] : fetchedMessages || [];
 
   return <Chat id={chatId} initialMessages={initialMessages} />;

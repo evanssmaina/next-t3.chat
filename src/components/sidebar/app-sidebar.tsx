@@ -6,6 +6,8 @@ import {
   SidebarHeader,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 import { MessageSquareIcon, PlusCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSelectedLayoutSegment } from "next/navigation";
@@ -31,7 +33,7 @@ export function AppSidebar() {
 
   const segment = useSelectedLayoutSegment();
   const pathname = usePathname();
-
+  const { open } = useSidebar();
   const isActive = (item: any) => {
     if (item.segment === null) {
       return pathname === "/";
@@ -41,18 +43,25 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar side="left" variant="sidebar">
+    <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center justify-between p-2">
-          <Link className="font-medium font-mono text-lg" href={"/"}>
-            nt3
-          </Link>
+        <div
+          className={cn(
+            "flex items-center justify-between py-1",
+            open && "p-2",
+          )}
+        >
+          {open && (
+            <Link className="font-medium font-mono text-lg" href={"/"}>
+              nt3
+            </Link>
+          )}
           <SidebarTrigger />
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="mt-2">
         <NavMain isActive={isActive} items={navItems} />
-        <NavChats />
+        {open && <NavChats />}
       </SidebarContent>
       <NavFooter />
     </Sidebar>

@@ -1,19 +1,14 @@
 import { availableModels } from "@/ai/providers";
 import { cn } from "@/lib/utils";
-import type { ChatRequestOptions, JSONValue, UIMessage } from "ai";
 import { useRef } from "react";
-import {
-  ChatContainerContent,
-  ChatContainerRoot,
-  ChatContainerScrollAnchor,
-} from "../ui/chat-container";
+import { ChatContainerContent, ChatContainerRoot } from "../ui/chat-container";
 import { Markdown } from "../ui/markdown";
 import { Message as MessageComponent, MessageContent } from "../ui/message";
-import { ScrollButton } from "../ui/scroll-button";
 import { AIErrorMessage } from "./ai-error-messge";
 import { AILoading } from "./ai-loading";
 import { AIMessageFooter } from "./ai-message-footer";
 import { AIReasoning } from "./ai-reasoning";
+import { useChat } from "./chat-provider";
 import { markdownComponents } from "./markdown-components";
 import { MessageAttachments } from "./message-attachments";
 
@@ -22,21 +17,8 @@ export const getModelNameById = (id: string) => {
   return model?.name;
 };
 
-interface ChatInterfaceProps {
-  reload: (
-    chatRequestOptions?: ChatRequestOptions,
-  ) => Promise<string | null | undefined>;
-  messages: UIMessage[];
-  error: Error | undefined;
-  status: "submitted" | "error" | "ready" | "streaming";
-}
-
-export function ChatInterface({
-  messages,
-  error,
-  reload,
-  status,
-}: ChatInterfaceProps) {
+export function ChatInterface() {
+  const { status, reload, error, messages } = useChat();
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -52,7 +34,7 @@ export function ChatInterface({
               <MessageComponent
                 key={message.id}
                 className={cn(
-                  "mx-auto flex w-full max-w-3xl flex-col justify-start gap-2 px-6",
+                  "mx-auto flex w-full max-w-3xl flex-col gap-2 px-6",
                 )}
               >
                 {message.role === "user" ? (
@@ -67,9 +49,9 @@ export function ChatInterface({
                       />
                     )}
 
-                    {message.parts &&
-                      message.parts.map((part, index) => {
-                        if (part.type === "text") {
+                    {message.parts.map((part, index) => {
+                      switch (part.type) {
+                        case "text":
                           return (
                             <MessageContent
                               id={message.id}
@@ -79,21 +61,28 @@ export function ChatInterface({
                               {part.text}
                             </MessageContent>
                           );
-                        }
-                        return null;
-                      })}
+                      }
+                    })}
                   </div>
                 ) : (
                   <div className="w-full flex flex-col items-start gap-2">
+                    {error && <AIErrorMessage reload={reload} />}
+
+                    {status === "submitted" && (
+                      <AILoading status={status} messages={messages} />
+                    )}
+
                     {/* Map over message.parts for ai messages */}
-                    {message.parts &&
-                      message.parts.map((part, index) => {
-                        if (part.type === "reasoning") {
+                    {message.parts.map((part, index) => {
+                      switch (part.type) {
+                        // AI Reasoning
+                        case "reasoning":
                           return (
                             <AIReasoning key={index} reasoningParts={[part]} />
                           );
-                        }
-                        if (part.type === "text") {
+
+                        // AI Text
+                        case "text":
                           return (
                             <Markdown
                               className="prose dark:prose-invert bg-transparent"
@@ -104,10 +93,8 @@ export function ChatInterface({
                               {part.text}
                             </Markdown>
                           );
-                        }
-
-                        return null;
-                      })}
+                      }
+                    })}
 
                     <AIMessageFooter
                       status={status}
@@ -120,14 +107,6 @@ export function ChatInterface({
               </MessageComponent>
             );
           })}
-
-          <div className=" mx-auto flex w-full max-w-3xl flex-col gap-2 px-6">
-            {error && <AIErrorMessage error={error} reload={reload} />}
-
-            {status === "submitted" && (
-              <AILoading status={status} messages={messages} />
-            )}
-          </div>
         </ChatContainerContent>
       </ChatContainerRoot>
     </div>

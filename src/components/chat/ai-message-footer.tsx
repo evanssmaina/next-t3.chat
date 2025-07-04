@@ -5,7 +5,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { MessageAction, MessageActions } from "../ui/message";
-import { AISourcesList } from "./ai-sources";
 
 interface MessageFooterProps {
   message: UIMessage;
@@ -41,8 +40,6 @@ export const AIMessageFooter = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const sources = message.parts.filter((part) => part.type === "source");
-
   return (
     <motion.div
       className="flex items-center justify-between w-full gap-3 mt-2"
@@ -76,10 +73,6 @@ export const AIMessageFooter = ({
           </Button>
         </MessageAction>
       </MessageActions>
-
-      {sources.length > 0 && (
-        <AISourcesList sources={sources.map((part) => part.source)} />
-      )}
     </motion.div>
   );
 };

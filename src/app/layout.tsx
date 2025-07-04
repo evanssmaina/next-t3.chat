@@ -1,5 +1,5 @@
+import { geist, geistMono } from "@/styles/fonts/fonts";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/config/site";
@@ -10,18 +10,6 @@ import { TRPCReactProvider } from "@/trpc/client";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-
-const geistSans = Geist({
-  display: "swap",
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  display: "swap",
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -91,8 +79,8 @@ export default function RootLayout({
           <html lang="en">
             <body
               className={cn(
+                geist.variable,
                 geistMono.variable,
-                geistSans.variable,
                 "antialiased bg-background text-foreground dark font-sans",
               )}
             >

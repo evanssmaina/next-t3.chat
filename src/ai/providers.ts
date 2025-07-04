@@ -7,9 +7,7 @@ export const registry = createProviderRegistry(
       languageModels: {
         "gemini-2.0-flash": google("gemini-2.0-flash"),
         "gemini-2.0-flash-lite": google("gemini-2.0-flash-lite"),
-        "gemini-2.5-flash": google("gemini-2.5-flash-preview-04-17", {
-          useSearchGrounding: true,
-        }),
+        "gemini-2.5-flash": google("gemini-2.5-flash-preview-04-17"),
         "gemini-2.5-flash-thinking": google(
           "gemini-2.0-flash-thinking-exp-01-21",
         ),

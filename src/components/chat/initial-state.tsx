@@ -19,7 +19,7 @@ export function InitialState() {
         }}
         className="mx-auto max-w-3xl w-full  text-center  mb-10 space-y-5"
       >
-        <h1 className="text-3xl">
+        <h1 className="text-4xl font-heading">
           {userId ? `Hi ${user?.firstName}, how are you?` : "Hi, how are you?"}
         </h1>
       </motion.div>

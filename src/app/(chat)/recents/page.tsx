@@ -1,10 +1,8 @@
-import { Await } from "@/components/await";
-import { ErrorFallback } from "@/components/error-fallback";
 import { Icons } from "@/components/icons";
 import { ChatList } from "@/components/recents/chats-list";
 import { SearchInput } from "@/components/recents/search-input";
 import { Button } from "@/components/ui/button";
-import { HydrateClient, prefetch } from "@/trpc/server";
+import { prefetch } from "@/trpc/server";
 import { trpc } from "@/trpc/server";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -28,7 +26,7 @@ export default function Recents() {
     <div className="w-full max-w-4xl mx-auto mt-10 h-screen">
       <div className="mb-5 py-5 bg-background ">
         <div className="flex items-center justify-between mb-5">
-          <h1 className="text-3xl mb-5">Your chat history</h1>
+          <h1 className="text-3xl mb-5 font-heading">Your chat history</h1>
           <Button asChild>
             <Link href="/">
               <Icons.plus />

@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
-import { X, Maximize2, FileTextIcon, ExternalLinkIcon } from "lucide-react";
-import { Document, Page, pdfjs } from "react-pdf";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { ExternalLinkIcon, FileTextIcon, Maximize2, X } from "lucide-react";
+import Image from "next/image";
+import React, { useState } from "react";
+import { Document, Page, pdfjs } from "react-pdf";
 
 // Set the worker source for PDF.js
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface Attachment {
   name?: string;
@@ -31,7 +31,7 @@ export function MessageAttachments({
   messageId,
 }: MessageAttachmentsProps) {
   const [activeAttachment, setActiveAttachment] = useState<Attachment | null>(
-    null
+    null,
   );
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -45,7 +45,7 @@ export function MessageAttachments({
 
   function changePage(offset: number) {
     setPageNumber((prevPageNumber) =>
-      Math.max(1, Math.min(numPages || 1, prevPageNumber + offset))
+      Math.max(1, Math.min(numPages || 1, prevPageNumber + offset)),
     );
   }
 
@@ -55,7 +55,7 @@ export function MessageAttachments({
         .filter(
           (attachment) =>
             attachment?.contentType?.startsWith("image/") ||
-            attachment?.contentType?.startsWith("application/pdf")
+            attachment?.contentType?.startsWith("application/pdf"),
         )
         .map((attachment, index) => {
           const isImage = attachment.contentType?.startsWith("image/");

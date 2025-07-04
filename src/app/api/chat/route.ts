@@ -116,6 +116,10 @@ export async function POST(req: NextRequest) {
             // Don't throw here - we want to complete the stream even if saving fails
           }
         },
+
+        onError: (error) => {
+          log.error("Error in streamText:", error);
+        },
       });
 
       result.consumeStream();
